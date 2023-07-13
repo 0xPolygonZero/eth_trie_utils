@@ -286,10 +286,11 @@ impl<T: PartialTrie> Node<T> {
 
     fn trie_get_intern(&self, curr_nibbles: &mut Nibbles) -> Option<&[u8]> {
         match self {
-            Node::Empty | Node::Hash(_) => {
+            Node::Empty => {
                 trace!("Get traversed {:?}", self);
                 None
             }
+            Node::Hash(h) => Some(&[]),
             // Note: If we end up supporting non-fixed sized keys, then we need to also check value.
             Node::Branch { children, value } => {
                 // Check against branch value.
@@ -315,6 +316,51 @@ impl<T: PartialTrie> Node<T> {
                 match nibbles.nibbles_are_identical_up_to_smallest_count(curr_nibbles) {
                     false => None,
                     true => Some(value),
+                }
+            }
+        }
+    }
+
+    /// Return false if the node is empty or a hash node.
+    pub fn is_not_empty_or_hash(&self, curr_nibbles: &mut Nibbles) -> bool {
+        if curr_nibbles.is_empty() {
+            return match self {
+                Node::Empty => false,
+                Node::Hash(_) => false,
+                Node::Branch { children, value } => true,
+                Node::Extension { nibbles, child } => true,
+                Node::Leaf { nibbles, value } => true,
+            };
+        }
+        match self {
+            Node::Empty => {
+                trace!("Get traversed {:?}", self);
+                false
+            }
+            Node::Hash(h) => false,
+            // Note: If we end up supporting non-fixed sized keys, then we need to also check value.
+            Node::Branch { children, value } => {
+                // Check against branch value.
+
+                let nib = curr_nibbles.pop_next_nibble_front();
+                trace!("Get traversed Branch (nibble: {:x})", nib);
+                children[nib as usize].is_not_empty_or_hash(curr_nibbles)
+            }
+            Node::Extension { nibbles, child } => {
+                trace!("Get traversed Extension (nibbles: {:?})", nibbles);
+                let r = curr_nibbles.pop_nibbles_front(nibbles.count);
+
+                match r.nibbles_are_identical_up_to_smallest_count(nibbles) {
+                    false => false,
+                    true => child.is_not_empty_or_hash(curr_nibbles),
+                }
+            }
+            Node::Leaf { nibbles, value } => {
+                trace!("Get traversed Leaf (nibbles: {:?})", nibbles);
+                dbg!(&nibbles, &curr_nibbles);
+                match nibbles.nibbles_are_identical_up_to_smallest_count(curr_nibbles) {
+                    false => false,
+                    true => true,
                 }
             }
         }
@@ -363,9 +409,7 @@ fn insert_into_trie_rec<N: PartialTrie>(
         }
         Node::Hash(_) => {
             trace!("Insert traversed {:?}", node);
-            panic!(
-                "Found a `Hash` node during an insert in a `PartialTrie`! These should not be able to be traversed during an insert!"
-            )
+            Some(create_node_from_insert_val(new_node.nibbles, new_node.v))
         }
         Node::Branch { children, value } => {
             if new_node.nibbles.count == 0 {

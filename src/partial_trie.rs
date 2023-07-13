@@ -302,6 +302,14 @@ impl HashedPartialTrie {
     pub(crate) fn set_hash(&self, _v: Option<H256>) {
         *self.hash.write() = None;
     }
+
+    /// Return false if the node is empty or a hash node.
+    fn is_not_empty_or_hash<K>(&self, k: K) -> bool
+    where
+        K: Into<crate::nibbles::Nibbles>,
+    {
+        self.node.is_not_empty_or_hash(&mut (k.into()))
+    }
 }
 
 impl PartialTrie for HashedPartialTrie {
