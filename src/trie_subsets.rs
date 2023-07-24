@@ -263,19 +263,26 @@ fn mark_nodes_that_are_needed<N: PartialTrie>(
     trie.info.touched = true;
 
     match &mut trie.node {
-        TrackedNodeIntern::Empty => Ok(()),
+        TrackedNodeIntern::Empty => match curr_nibbles.is_empty() {
+            false => Err(create_unexpected_key_err(trie, curr_nibbles)),
+            true => Ok(()),
+        },
         TrackedNodeIntern::Hash => match curr_nibbles.is_empty() {
-            false => Err(SubsetTrieError::UnexpectedKey(
-                *curr_nibbles,
-                format!("{:?}", trie),
-            )),
+            false => Err(create_unexpected_key_err(trie, curr_nibbles)),
             true => Ok(()),
         },
         // Note: If we end up supporting non-fixed sized keys, then we need to also check value.
         TrackedNodeIntern::Branch(children) => {
-            // Check against branch value.
             if curr_nibbles.is_empty() {
-                return Ok(());
+                match trie.info.get_branch_value_expected().is_empty() {
+                    false => return Ok(()),
+                    true => return Err(create_unexpected_key_err(trie, curr_nibbles)),
+                };
+            }
+
+            // Check against branch value.
+            if curr_nibbles.is_empty() && trie.info.get_branch_value_expected().is_empty() {
+                return Err(create_unexpected_key_err(trie, curr_nibbles));
             }
 
             let nib = curr_nibbles.pop_next_nibble_front();
@@ -286,12 +293,26 @@ fn mark_nodes_that_are_needed<N: PartialTrie>(
             let r = curr_nibbles.pop_nibbles_front(nibbles.count);
 
             match r.nibbles_are_identical_up_to_smallest_count(nibbles) {
-                false => Ok(()),
+                false => Err(create_unexpected_key_err(trie, curr_nibbles)),
                 true => mark_nodes_that_are_needed(child, curr_nibbles),
             }
         }
-        TrackedNodeIntern::Leaf => Ok(()),
+        TrackedNodeIntern::Leaf => {
+            let nibbles = trie.info.get_nibbles_expected();
+
+            match nibbles == curr_nibbles {
+                false => Err(create_unexpected_key_err(trie, curr_nibbles)),
+                true => Ok(()),
+            }
+        }
     }
+}
+
+fn create_unexpected_key_err<N: PartialTrie>(
+    trie: &TrackedNode<N>,
+    curr_nibbles: &Nibbles,
+) -> SubsetTrieError {
+    SubsetTrieError::UnexpectedKey(*curr_nibbles, format!("{:?}", trie))
 }
 
 fn create_partial_trie_subset_from_tracked_trie<N: PartialTrie>(
@@ -416,21 +437,21 @@ mod tests {
     }
 
     #[test]
-    fn empty_trie_does_not_return_err_on_query() {
+    fn empty_trie_returns_an_err_on_query() {
         let trie = TrieType::default();
         let nibbles: Nibbles = 0x1234.into();
         let res = create_trie_subset(&trie, once(nibbles));
 
-        assert!(res.is_ok());
+        assert!(res.is_err());
     }
 
     #[test]
-    fn non_existent_key_does_not_return_err() {
+    fn non_existent_key_returns_an_err() {
         let mut trie = TrieType::default();
         trie.insert(0x1234, vec![0, 1, 2]);
         let res = create_trie_subset(&trie, once(0x5678));
 
-        assert!(res.is_ok());
+        assert!(res.is_err());
     }
 
     #[test]
