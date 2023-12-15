@@ -609,6 +609,10 @@ impl Nibbles {
 
         let hex_char_iter = match is_even(self.count) {
             false => hex_char_iter_raw.skip(1),
+
+            // We actually want the `skip(0)` in this case just so both match arms produce the same
+            // type.
+            #[allow(clippy::iter_skip_zero)]
             true => hex_char_iter_raw.skip(0),
         };
 
@@ -668,11 +672,8 @@ impl Nibbles {
             _ => return Err(FromHexPrefixError::InvalidFlags(flag_bits)),
         };
 
-        // println!("Is leaf: {}, tot_nib_mod: {}", is_leaf, tot_nib_modifier);
-
         let count = ((hex_prefix_bytes.len() * 2) as isize + tot_nib_modifier) as usize;
 
-        // println!("Count: {}", count);
         let odd_nib_count = count & 0b1 == 1;
 
         let hex_prefix_byes_iter = hex_prefix_bytes.iter().skip(1).take(32).cloned();
@@ -1057,11 +1058,7 @@ mod tests {
         let mut bytes_padded = [0; 8];
         let bytes = Nibbles::from(k).to_hex_prefix_encoding(is_leaf);
 
-        println!("Raw bytes: {}", hex::encode(&bytes));
-
         bytes_padded[8 - bytes.len()..8].clone_from_slice(&bytes);
-
-        println!("Bytes padded: {}", hex::encode(bytes_padded));
 
         u64::from_be_bytes(bytes_padded)
     }

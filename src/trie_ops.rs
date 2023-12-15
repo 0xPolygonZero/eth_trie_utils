@@ -849,7 +849,7 @@ mod tests {
         let mut entries = [entry(0x1234), entry(0x1234)];
         entries[1].1 = vec![100];
 
-        let trie = StandardTrie::from_iter(entries.into_iter());
+        let trie = StandardTrie::from_iter(entries);
         assert_eq!(trie.get(0x1234), Some([100].as_slice()));
     }
 
