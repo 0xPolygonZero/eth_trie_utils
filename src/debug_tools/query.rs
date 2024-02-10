@@ -9,7 +9,7 @@ use super::common::get_key_piece_from_node_pulling_from_key_for_branches;
 use crate::{
     nibbles::Nibbles,
     partial_trie::{Node, PartialTrie, WrappedNode},
-    utils::{get_segment_from_node_and_key_piece, NodePath, PathSegment},
+    utils::{get_segment_from_node_and_key_piece, PathSegment, TriePath},
 };
 
 /// Params controlling how much information is reported in the query output.
@@ -153,7 +153,7 @@ fn count_non_empty_branch_children_from_mask(mask: u16) -> usize {
 #[derive(Clone, Debug)]
 pub struct DebugQueryOutput {
     k: Nibbles,
-    pub node_path: NodePath,
+    pub node_path: TriePath,
     extra_node_info: Vec<Option<ExtraNodeSegmentInfo>>,
     node_found: bool,
     params: DebugQueryParams,
@@ -193,7 +193,7 @@ impl DebugQueryOutput {
     fn new(k: Nibbles, params: DebugQueryParams) -> Self {
         Self {
             k,
-            node_path: NodePath::default(),
+            node_path: TriePath::default(),
             extra_node_info: Vec::default(),
             node_found: false,
             params,

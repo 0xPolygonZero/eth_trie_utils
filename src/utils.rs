@@ -10,6 +10,7 @@ use num_traits::PrimInt;
 use crate::{
     nibbles::{Nibble, Nibbles},
     partial_trie::{Node, PartialTrie},
+    special_query::TriePathIter,
 };
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -76,9 +77,28 @@ pub enum PathSegment {
 }
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
-pub struct NodePath(pub Vec<PathSegment>);
+pub struct TriePath(pub Vec<PathSegment>);
 
-impl NodePath {
+impl Display for TriePath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let num_elems = self.0.len();
+
+        // For everything but the last elem.
+        for seg in self.0.iter().take(num_elems.saturating_sub(1)) {
+            Self::write_elem(f, seg)?;
+            write!(f, " --> ")?;
+        }
+
+        // Avoid the extra `-->` for the last elem.
+        if let Some(seg) = self.0.last() {
+            Self::write_elem(f, seg)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl TriePath {
     pub(crate) fn dup_and_append(&self, seg: PathSegment) -> Self {
         let mut duped_vec = self.0.clone();
         duped_vec.push(seg);
@@ -95,22 +115,17 @@ impl NodePath {
     }
 }
 
-impl Display for NodePath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let num_elems = self.0.len();
+pub struct TriePathLazy<T: PartialTrie>(TriePathIter<T>);
 
-        // For everything but the last elem.
-        for seg in self.0.iter().take(num_elems.saturating_sub(1)) {
-            Self::write_elem(f, seg)?;
-            write!(f, " --> ")?;
-        }
+impl<T: PartialTrie> TriePathLazy<T> {
+    pub fn into_key(self) -> Nibbles {
+        todo!()
+    }
+}
 
-        // Avoid the extra `-->` for the last elem.
-        if let Some(seg) = self.0.last() {
-            Self::write_elem(f, seg)?;
-        }
-
-        Ok(())
+impl<T: PartialTrie> From<TriePathIter<T>> for TriePathLazy<T> {
+    fn from(v: TriePathIter<T>) -> Self {
+        Self(v)
     }
 }
 
