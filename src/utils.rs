@@ -115,11 +115,23 @@ impl TriePath {
     }
 }
 
-pub struct TriePathLazy<T: PartialTrie>(TriePathIter<T>);
+pub struct TriePathLazy<T: PartialTrie>(pub TriePathIter<T>);
 
 impl<T: PartialTrie> TriePathLazy<T> {
     pub fn into_key(self) -> Nibbles {
-        todo!()
+        let mut key = Nibbles::default();
+
+        for seg in self.0 {
+            match seg {
+                PathSegment::Empty | PathSegment::Hash => (),
+                PathSegment::Branch(nib) => key.push_nibble_front(nib),
+                PathSegment::Extension(nibs) | PathSegment::Leaf(nibs) => {
+                    key.push_nibbles_front(&nibs)
+                }
+            }
+        }
+
+        key
     }
 }
 
